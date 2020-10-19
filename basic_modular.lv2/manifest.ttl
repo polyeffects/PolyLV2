@@ -1,0 +1,56 @@
+@prefix modular: <http://polyeffects.com/lv2/basic_modular> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<http://polyeffects.com/lv2/basic_modular#amp>
+	a lv2:Plugin ;
+	rdfs:seeAlso <amp.ttl> ;
+	lv2:binary <basic_modular.so> .
+
+<http://polyeffects.com/lv2/basic_modular#difference>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#sum>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+
+<http://polyeffects.com/lv2/basic_modular#ratio>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#product>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#max>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#min>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#abs>
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#tempo_ratio> 
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#toggle> 
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <maths.so> .
