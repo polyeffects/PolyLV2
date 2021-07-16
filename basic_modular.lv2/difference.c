@@ -193,7 +193,7 @@ run_toggle(LV2_Handle instance,
 {
 	Difference* const plugin     = (Difference*)instance;
 	const float* const      trigger    = plugin->minuend_cv;
-	float* const            difference = plugin->difference;
+	float* const            out = plugin->difference;
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
 		if (trigger[s] >= 1) {
@@ -204,7 +204,31 @@ run_toggle(LV2_Handle instance,
 		} else {
 			plugin->prev_trigger = false;
 		}
-		difference[s] = (float) (plugin->on_state);
+		out[s] = (float) (plugin->on_state);
+
+	} 
+}
+
+static void
+run_schmitt(LV2_Handle instance,
+    uint32_t   sample_count)
+{
+	Difference* const plugin     = (Difference*)instance;
+	const float* const      trigger    = plugin->minuend_cv;
+	float* const            out = plugin->difference;
+	bool is_triggered = false; 
+
+	for (uint32_t s = 0; s < sample_count; ++s) { 
+		is_triggered = false;
+		if (trigger[s] >= 0.2) { // 2 volt in Hector
+			if (!(plugin->prev_trigger)){
+				is_triggered = true;
+				plugin->prev_trigger = true;
+			}
+		} else if (trigger[s] <= 0.02){ // 0.1 volts in Hector
+			plugin->prev_trigger = false;
+		}
+		out[s] = (float) (is_triggered);
 
 	} 
 }
@@ -323,6 +347,17 @@ static const LV2_Descriptor descriptor8 = {
 	NULL,
 };
 
+static const LV2_Descriptor descriptor9 = {
+	MATH_URI "schmitt",
+	instantiate,
+	connect_port_toggle,
+	NULL,
+	run_schmitt,
+	NULL,
+	cleanup,
+	NULL,
+};
+
 LV2_SYMBOL_EXPORT const LV2_Descriptor*
 lv2_descriptor(uint32_t index)
 {
@@ -345,6 +380,8 @@ lv2_descriptor(uint32_t index)
 			return &descriptor7;
 		case 8:
 			return &descriptor8;
+		case 9:
+			return &descriptor9;
 		default:
 			return NULL;
 	}
