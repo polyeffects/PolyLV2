@@ -220,12 +220,12 @@ run_schmitt(LV2_Handle instance,
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
 		is_triggered = false;
-		if (trigger[s] >= 0.2) { // 2 volt in Hector
+		if (trigger[s] >= 0.4) { // 2 volt in Hector
 			if (!(plugin->prev_trigger)){
 				is_triggered = true;
 				plugin->prev_trigger = true;
 			}
-		} else if (trigger[s] <= 0.02){ // 0.1 volts in Hector
+		} else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
 			plugin->prev_trigger = false;
 		}
 		out[s] = (float) (is_triggered);

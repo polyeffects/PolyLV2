@@ -1,8 +1,7 @@
 /*
-  An LV2 plugin to simulate an analogue style step sequencer.
-  Copyright 2020 Loki Davison 
-  Copyright 2011 David Robillard
-  Copyright 2002 Mike Rawes
+  A euclidean euclidean LV2 plugin 
+  Copyright 2021 Loki Davison 
+  Poly Effects
 
   This is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by
@@ -19,46 +18,84 @@
 */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "math_func.h"
 #include "common.h"
 
-#define SEQUENCER_MAX_INPUTS 16
+/*
+ *
+ * steps beats shift for 4 steps
+ * is enabled x 4
+ * cv out: current step out x 4
+ * cv in: step forward / step backwards
+ * cv out:  is beat 1 x 4
+ * cv reset
+ * control reset
+ *
+ * */
 
-#define SEQUENCER_BACK_GATE      0
-#define SEQUENCER_PLAY           1
-#define SEQUENCER_LOOP_POINT        2
-#define SEQUENCER_RESET             3
-#define SEQUENCER_GLIDE				4
-#define SEQUENCER_VALUE_START       5
-#define SEQUENCER_OUTPUT            (SEQUENCER_MAX_INPUTS + 5)
-#define SEQUENCER_CURRENT_STEP_OUT      (SEQUENCER_MAX_INPUTS + 6) // so we can show step in UI
-#define SEQUENCER_BPM				(SEQUENCER_MAX_INPUTS + 7)
-#define SEQUENCER_NOTE_LENGTH		(SEQUENCER_MAX_INPUTS + 8)
+#define EUCLIDEAN_NUM_TRACKS 4
+#define EUCLIDEAN_MAX_STEPS 32
 
-#define clamp(x, lower, upper) (fmax(lower, fmin(x, upper)))
+#define EUCLIDEAN_BACK_TRIGGER      0
+#define EUCLIDEAN_TRIGGER           1
+#define EUCLIDEAN_RESET             2
+#define EUCLIDEAN_STEPS1             3
+#define EUCLIDEAN_STEPS2             4
+#define EUCLIDEAN_STEPS3             5
+#define EUCLIDEAN_STEPS4             6
+#define EUCLIDEAN_BEATS1             7
+#define EUCLIDEAN_BEATS2             8
+#define EUCLIDEAN_BEATS3             9
+#define EUCLIDEAN_BEATS4             10
+#define EUCLIDEAN_SHIFT1             11
+#define EUCLIDEAN_SHIFT2             12
+#define EUCLIDEAN_SHIFT3             13
+#define EUCLIDEAN_SHIFT4             14
+#define EUCLIDEAN_IS_ENABLED1         15
+#define EUCLIDEAN_IS_ENABLED2             16
+#define EUCLIDEAN_IS_ENABLED3             17
+#define EUCLIDEAN_IS_ENABLED4             18
+#define EUCLIDEAN_OUT1         19
+#define EUCLIDEAN_OUT2             20
+#define EUCLIDEAN_OUT3             21
+#define EUCLIDEAN_OUT4             22
+#define EUCLIDEAN_IS_THE_ONE1         23
+#define EUCLIDEAN_IS_THE_ONE2         24 
+#define EUCLIDEAN_IS_THE_ONE3         25
+#define EUCLIDEAN_IS_THE_ONE4        26
+#define EUCLIDEAN_CURRENT_STEP_OUT1    27 
+#define EUCLIDEAN_CURRENT_STEP_OUT2    28
+#define EUCLIDEAN_CURRENT_STEP_OUT3   29
+#define EUCLIDEAN_CURRENT_STEP_OUT4  30
+
 
 typedef struct {
-	const float* back_gate;
-	const float* play;
-	const float* loop_steps;
+	// ports
+	const float* back_trigger;
+	const float* trigger;
 	const float* reset;
-	const float* glide;
-	const float* bpm;
-	const float* note_length;
-	const float* values[SEQUENCER_MAX_INPUTS];
-	float*       output;
-	float*       current_step_out;
-	float        srate;
-	float        inv_srate;
-	float        last_back_gate;
+
+	const float* steps[EUCLIDEAN_NUM_TRACKS];
+	const float* beats[EUCLIDEAN_NUM_TRACKS];
+	const float* shift[EUCLIDEAN_NUM_TRACKS];
+	const float* is_enabled[EUCLIDEAN_NUM_TRACKS];
+
+	float*	     out_trigger[EUCLIDEAN_NUM_TRACKS];
+	float*       is_the_one[EUCLIDEAN_NUM_TRACKS];
+	float*       current_step_out[EUCLIDEAN_NUM_TRACKS];
+
+	// internal
+	float        last_back_trigger;
 	float        last_trigger;
-	float        last_value1;
-	float        last_value2;
-	unsigned int step_index;
-	int samples_elapsed;
-} Sequencer;
+	float        last_reset;
+	unsigned int step_index[EUCLIDEAN_NUM_TRACKS];
+
+	bool		 beats_array[EUCLIDEAN_NUM_TRACKS][EUCLIDEAN_MAX_STEPS];
+	bool		 shifted_array[EUCLIDEAN_NUM_TRACKS][EUCLIDEAN_MAX_STEPS];
+} Euclidean;
 
 static void
 cleanup(LV2_Handle instance)
@@ -71,40 +108,105 @@ connect_port(LV2_Handle instance,
              uint32_t   port,
              void*      data)
 {
-	Sequencer* plugin = (Sequencer*)instance;
+	Euclidean* plugin = (Euclidean*)instance;
 
 	switch (port) {
-	case SEQUENCER_BACK_GATE:
-		plugin->back_gate = (const float*)data;
+	case EUCLIDEAN_BACK_TRIGGER:
+		plugin->back_trigger = (const float*)data;
 		break;
-	case SEQUENCER_PLAY:
-		plugin->play = (const float*)data;
+	case EUCLIDEAN_TRIGGER:
+		plugin->trigger = (const float*)data;
 		break;
-	case SEQUENCER_LOOP_POINT:
-		plugin->loop_steps = (const float*)data;
-		break;
-	case SEQUENCER_OUTPUT:
-		plugin->output = (float*)data;
-		break;
-	case SEQUENCER_CURRENT_STEP_OUT:
-		plugin->current_step_out = (float*)data;
-		break;
-	case SEQUENCER_RESET:
+	case EUCLIDEAN_RESET:
 		plugin->reset = (const float*)data;
 		break;
-	case SEQUENCER_GLIDE:
-		plugin->glide = (const float*)data;
+	case EUCLIDEAN_STEPS1:          
+		plugin->steps[0] = (const float*)data;
 		break;
-	case SEQUENCER_BPM:
-		plugin->bpm = (const float*)data;
+	case EUCLIDEAN_STEPS2:          
+		plugin->steps[1] = (const float*)data;
 		break;
-	case SEQUENCER_NOTE_LENGTH:
-		plugin->note_length = (const float*)data;
+	case EUCLIDEAN_STEPS3:          
+		plugin->steps[2] = (const float*)data;
+		break;
+	case EUCLIDEAN_STEPS4:          
+		plugin->steps[3] = (const float*)data;
+		break;
+	case EUCLIDEAN_BEATS1:          
+		plugin->beats[0] = (const float*)data;
+		break;
+	case EUCLIDEAN_BEATS2:          
+		plugin->beats[1] = (const float*)data;
+		break;
+	case EUCLIDEAN_BEATS3:          
+		plugin->beats[2] = (const float*)data;
+		break;
+	case EUCLIDEAN_BEATS4:          
+		plugin->beats[3] = (const float*)data;
+		break;
+	case EUCLIDEAN_SHIFT1:          
+		plugin->shift[0] = (const float*)data;
+		break;
+	case EUCLIDEAN_SHIFT2:          
+		plugin->shift[1] = (const float*)data;
+		break;
+	case EUCLIDEAN_SHIFT3:          
+		plugin->shift[2] = (const float*)data;
+		break;
+	case EUCLIDEAN_SHIFT4:          
+		plugin->shift[3] = (const float*)data;
+		break;
+	case EUCLIDEAN_IS_ENABLED1:     
+		plugin->is_enabled[0] = (const float*)data;
+		break;
+	case EUCLIDEAN_IS_ENABLED2:     
+		plugin->is_enabled[1] = (const float*)data;
+		break;
+	case EUCLIDEAN_IS_ENABLED3:     
+		plugin->is_enabled[2] = (const float*)data;
+		break;
+	case EUCLIDEAN_IS_ENABLED4:     
+		plugin->is_enabled[3] = (const float*)data;
+		break;
+
+		// Outputs
+	case EUCLIDEAN_OUT1:         
+		plugin->out_trigger[0] = (float*)data;
+		break;
+	case EUCLIDEAN_OUT2:          
+		plugin->out_trigger[1] = (float*)data;
+		break;
+	case EUCLIDEAN_OUT3:          
+		plugin->out_trigger[2] = (float*)data;
+		break;
+	case EUCLIDEAN_OUT4:          
+		plugin->out_trigger[3] = (float*)data;
+		break;
+	case EUCLIDEAN_IS_THE_ONE1:   
+		plugin->is_the_one[0] = (float*)data;
+		break;
+	case EUCLIDEAN_IS_THE_ONE2:    
+		plugin->is_the_one[1] = (float*)data;
+		break;
+	case EUCLIDEAN_IS_THE_ONE3:   
+		plugin->is_the_one[2] = (float*)data;
+		break;
+	case EUCLIDEAN_IS_THE_ONE4:   
+		plugin->is_the_one[3] = (float*)data;
+		break;
+	case EUCLIDEAN_CURRENT_STEP_OUT1:    
+		plugin->current_step_out[0] = (float*)data;
+		break;
+	case EUCLIDEAN_CURRENT_STEP_OUT2:   
+		plugin->current_step_out[1] = (float*)data;
+		break;
+	case EUCLIDEAN_CURRENT_STEP_OUT3:  
+		plugin->current_step_out[2] = (float*)data;
+		break;
+	case EUCLIDEAN_CURRENT_STEP_OUT4: 
+		plugin->current_step_out[3] = (float*)data;
 		break;
 	default:
-		if (port >= SEQUENCER_VALUE_START && port < SEQUENCER_OUTPUT) {
-			plugin->values[port - SEQUENCER_VALUE_START] = (const float*)data;
-		}
 		break;
 	}
 }
@@ -115,13 +217,10 @@ instantiate(const LV2_Descriptor*     descriptor,
             const char*               bundle_path,
             const LV2_Feature* const* features)
 {
-	Sequencer* plugin = (Sequencer*)malloc(sizeof(Sequencer));
+	Euclidean* plugin = (Euclidean*)malloc(sizeof(Euclidean));
 	if (!plugin) {
 		return NULL;
 	}
-
-	plugin->srate     = (float)sample_rate;
-	plugin->inv_srate = 1.0f / plugin->srate;
 
 	return (LV2_Handle)plugin;
 }
@@ -129,116 +228,145 @@ instantiate(const LV2_Descriptor*     descriptor,
 static void
 activate(LV2_Handle instance)
 {
-	Sequencer* plugin = (Sequencer*)instance;
+	Euclidean* plugin = (Euclidean*)instance;
 
-	plugin->samples_elapsed    = 0;
-	plugin->last_value1   = 0.0f;
-	plugin->last_value2   = 0.0f;
-	plugin->step_index   = 0;
+	plugin->last_back_trigger    = 0.0f;
+	plugin->last_trigger = 0.0f;
+	plugin->last_reset = 0.0f;
+	for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+		plugin->step_index[i]   = 0;
+	}
 }
 
 static void
 run(LV2_Handle instance,
     uint32_t   sample_count)
 {
-	Sequencer* plugin = (Sequencer*)instance;
+	Euclidean* plugin = (Euclidean*)instance;
+	/*
+	 * calculate beats for each track
+	 *
+	 *  if trigger, find if current beat is a beat
+	 *
+	 *  if it is a beat, we set the output trigger to 1.0, else 0.0
+	 *
+	 */
 
-	/* back_gate */
-	const float* back_gate = plugin->back_gate;
+	/* back_trigger */
+	const float* back_trigger = plugin->back_trigger;
 
-	/* Step play */
-	const float* play = plugin->play;
+	/* Step Trigger */
+	const float* trigger = plugin->trigger;
 
 	/* Reset trigger */
 	const float* reset = plugin->reset;
 
-	/* Loop Steps */
-	const float loop_steps = *(plugin->loop_steps);
+	/* Values */
+	int beats[EUCLIDEAN_NUM_TRACKS];
+	int steps[EUCLIDEAN_NUM_TRACKS];
+	int shift[EUCLIDEAN_NUM_TRACKS];
+	bool is_enabled[EUCLIDEAN_NUM_TRACKS];
 
+	/* /1* Output *1/ */
+	/* float* out_trigger[EUCLIDEAN_NUM_TRACKS] = plugin->out_trigger; */
+	/* float* is_the_one[EUCLIDEAN_NUM_TRACKS] = plugin->is_the_one; */
+	/* float* current_step_out[EUCLIDEAN_NUM_TRACKS] = plugin->current_step_out; */
 
-	/* Glide, filter coefficient */
-	const float glide = *(plugin->glide);
-	float bpm = *(plugin->bpm);
-	float note_length = *(plugin->note_length);
+	float last_back_trigger    = plugin->last_back_trigger;
+	float last_trigger = plugin->last_trigger;
+	float last_reset   = plugin->last_reset;
 
-	// given current note length and bpm, calculate samples per step
-	// 48000 per second / 120 bpm = 0.5 seconds per beat, 48k * 0.5 samples per beat at 1/4 notes  (1/4 / 1/8 == 2)
-	note_length = clamp(note_length, 0.03125, 1.0);
-	bpm = clamp(bpm, 10, 320);
-   
-	const int samples_per_step = (int) (((60.0 / bpm) * plugin->srate) / (0.25 / note_length));
-	/* const int samples_per_step = 24000; */
+	unsigned int  step_index[EUCLIDEAN_NUM_TRACKS]; 
 
-	/* Step Values */
-	float values[SEQUENCER_MAX_INPUTS];
-
-	/* Output */
-	float* output = plugin->output;
-	float* current_step_out = plugin->current_step_out;
-
-	float last_value1   = plugin->last_value1;
-	float last_value2   = plugin->last_value2;
-
-	unsigned int  step_index = plugin->step_index;
-	unsigned int  loop_index = LRINTF(loop_steps);
-	int  samples_elapsed = plugin->samples_elapsed;
-	int           i;
-
-	loop_index = loop_index == 0 ?  1 : loop_index;
-	loop_index = (loop_index > SEQUENCER_MAX_INPUTS)
-		? SEQUENCER_MAX_INPUTS
-		: loop_index;
-
-	for (i = 0; i < SEQUENCER_MAX_INPUTS; i++) {
-		values[i] = *(plugin->values[i]);
+	for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+		beats[i] = (int) *(plugin->beats[i]);
+		steps[i] = (int) *(plugin->steps[i]);
+		shift[i] = (int) *(plugin->shift[i]);
+		is_enabled[i] = *(plugin->is_enabled[i]) > 0.9;
+		step_index[i] = plugin->step_index[i]; // this is dumb but I can't remember how to do pointers properly today...
 	}
 
-   float fSlow0 = expf((0.0f - (plugin->inv_srate / glide)));
-   float fSlow1 = (1.0f - fSlow0);
+	int bucket;
+
+	for (int t = 0; t < EUCLIDEAN_NUM_TRACKS; t++){
+		bucket = 0;
+	
+		for (int i = 0; i < steps[t]; i++) {
+			bucket += beats[t];
+			if (bucket >= steps[t]){
+				bucket -= steps[t];
+				plugin->beats_array[t][steps[t]-1-i] = true;
+			} else {
+				plugin->beats_array[t][steps[t]-1-i] = false;
+			}
+		}
+
+		for (int i = 0; i < steps[t]; i++) {
+			plugin->shifted_array[t][(i+shift[t]) % steps[t]] = plugin->beats_array[t][i];
+		}
+	}
 
 	for (uint32_t s = 0; s < sample_count; ++s) {
-		samples_elapsed++;
-		if (reset[s] >= 1.0f) {
-			step_index = 0;
-			samples_elapsed = 0;
+		for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+			plugin->out_trigger[i][s] = 0.0f;
+			plugin->is_the_one[i][s] = 0.0f;
 		}
-		else {
-			if (play[s] >= 1.0f || back_gate[s] >= 1.0f) {
-				if (samples_elapsed > samples_per_step){
-					if (play[s] >= 1.0f) {
-						step_index++;
-						if (step_index >= loop_index) {
-							step_index = 0;
+		if (reset[s] > 0.0f) {
+			for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+				step_index[i] = 0;
+			}
+		} else {
+			if (trigger[s] > 0.0f && !(last_trigger > 0.0f)) {
+				for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+					if (is_enabled[i] > 0.9f){
+						step_index[i]++;
+						if (step_index[i] >= steps[i]) {
+							step_index[i] = 0;
 						}
+						plugin->out_trigger[i][s] = (float) plugin->shifted_array[i][step_index[i]];
+						if (step_index[i] == 0){
+							plugin->is_the_one[i][s] = 1.0f;
+						}
+					
 					}
-					if (back_gate[s] >= 1.0f) {
-						if (step_index == 0){
-							step_index = loop_index-1;
+				}
+
+			}
+			if (back_trigger[s] > 0.0f && !(last_back_trigger > 0.0f)) {
+				for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+					if (is_enabled[i] > 0.9f){
+						if (step_index[i] == 0){
+							step_index[i] = steps[i]-1;
 						}
 						else {
-							step_index--;
+							step_index[i]--;
+						}
+						plugin->out_trigger[i][s] = (float) plugin->shifted_array[i][step_index[i]];
+						if (step_index[i] == 0){
+							plugin->is_the_one[i][s] = 1.0f;
 						}
 					}
-
-					samples_elapsed = 0;
 				}
 			}
-		}	
+		}
+		last_back_trigger    = back_trigger[s];
+		last_trigger = trigger[s];
+		last_reset = reset[s];
 
-		last_value1 = ((fSlow0 * last_value2) + (fSlow1 * values[step_index]));
-		last_value2 = last_value1;
-		output[s] = last_value1;
 	}
 
-	plugin->last_value1   = last_value1;
-	plugin->last_value2   = last_value2;
-	plugin->step_index   = step_index;
-	plugin->samples_elapsed = samples_elapsed; 
-	current_step_out[0] = (float) step_index;
+	plugin->last_back_trigger    = last_back_trigger;
+	plugin->last_trigger = last_trigger;
+	plugin->last_reset = last_reset;
+	
+	for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+		plugin->step_index[i]   = step_index[i];
+		plugin->current_step_out[i][0] = (float) step_index[i];
+	}
 }
 
 static const LV2_Descriptor descriptor = {
-	URI_PREFIX "/step_sequencer_bpm",
+	URI_PREFIX "/euclidean",
 	instantiate,
 	connect_port,
 	activate,
