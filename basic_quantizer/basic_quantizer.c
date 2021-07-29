@@ -126,8 +126,8 @@ run(LV2_Handle instance,
 
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
-		in_note = (int) fabs(roundf (input[s] * 12.0)) % 12; 	
-		octave = truncf(input[s]);
+		in_note = (int) fabs(roundf (input[s] * 60.0)) % 12; 	
+		octave = truncf(input[s] * 5.0f);
 		for (int i = 0; i < 12; i++){
 
 			cur_note = mod_euclidean(in_note - i, 12);
@@ -140,9 +140,9 @@ run(LV2_Handle instance,
 			}
 		}
 		if (input[s] > 0){
-			output[s] = octave + (cur_note / 12.0);
+			output[s] = (octave + (cur_note / 12.0)) * 0.2 ;
 		} else {
-			output[s] = octave - (cur_note / 12.0);
+			output[s] = (octave - (cur_note / 12.0)) * 0.2;
 		}
 		if (output[s] == prev_out){
 			changed[s] = 0.0f;
