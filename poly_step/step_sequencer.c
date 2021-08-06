@@ -23,6 +23,7 @@
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "math_func.h"
 #include "common.h"
+#include <stdbool.h>
 
 #define SEQUENCER_MAX_INPUTS 16
 
@@ -52,6 +53,9 @@ typedef struct {
 	float        last_value1;
 	float        last_value2;
 	unsigned int step_index;
+
+	bool        prev_back_trigger;
+	bool        prev_trigger;
 } Sequencer;
 
 static void
@@ -66,6 +70,7 @@ connect_port(LV2_Handle instance,
              void*      data)
 {
 	Sequencer* plugin = (Sequencer*)instance;
+
 
 	switch (port) {
 	case SEQUENCER_BACK_TRIGGER:
@@ -125,6 +130,8 @@ activate(LV2_Handle instance)
 	plugin->last_value1   = 0.0f;
 	plugin->last_value2   = 0.0f;
 	plugin->step_index   = 0;
+	plugin->prev_back_trigger    = false;
+	plugin->prev_trigger = false;
 }
 
 static void
@@ -162,6 +169,9 @@ run(LV2_Handle instance,
 	float last_value1   = plugin->last_value1;
 	float last_value2   = plugin->last_value2;
 
+	bool prev_back_trigger    = plugin->prev_back_trigger;
+	bool prev_trigger = plugin->prev_trigger;
+
 	unsigned int  step_index = plugin->step_index;
 	unsigned int  loop_index = LRINTF(loop_steps);
 	int           i;
@@ -182,19 +192,27 @@ run(LV2_Handle instance,
 		if (reset[s] > 0.0f) {
 			step_index = 0;
 		} else {
-			if (trigger[s] > 0.0f && !(last_trigger > 0.0f)) {
+			if (trigger[s] > 0.4f && !(prev_trigger)) {
+				prev_trigger = true;
 				step_index++;
 				if (step_index >= loop_index) {
 					step_index = 0;
 				}
 			}
-			if (back_trigger[s] > 0.0f && !(last_back_trigger > 0.0f)) {
+			else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
+				prev_trigger = false;
+			}
+
+			if (back_trigger[s] > 0.4f && !(prev_back_trigger)) {
+				prev_back_trigger = true;
 				if (step_index == 0){
 					step_index = loop_index-1;
 				}
 				else {
 					step_index--;
 				}
+			} else if (back_trigger[s] <= 0.05){ // 0.25 volts in Hector
+				prev_back_trigger = false;
 			}
 		}
 		last_back_trigger    = back_trigger[s];
@@ -212,6 +230,8 @@ run(LV2_Handle instance,
 	plugin->last_value1   = last_value1;
 	plugin->last_value2   = last_value2;
 	plugin->step_index   = step_index;
+	plugin->prev_back_trigger    = prev_back_trigger;
+	plugin->prev_trigger = prev_trigger;
 	current_step_out[0] = (float) step_index;
 }
 

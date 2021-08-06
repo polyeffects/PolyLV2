@@ -24,6 +24,8 @@
 #include "math_func.h"
 #include "common.h"
 
+#define TRIGGER_LENGTH 48 // 1 ms at 48kHz
+
 /*
  *
  * steps beats shift for 4 steps
@@ -88,10 +90,12 @@ typedef struct {
 	float*       current_step_out[EUCLIDEAN_NUM_TRACKS];
 
 	// internal
-	float        last_back_trigger;
-	float        last_trigger;
-	float        last_reset;
+	bool        prev_back_trigger;
+	bool        prev_trigger;
 	unsigned int step_index[EUCLIDEAN_NUM_TRACKS];
+
+	unsigned int trigger_count_down[EUCLIDEAN_NUM_TRACKS];
+	unsigned int is_the_one_count_down[EUCLIDEAN_NUM_TRACKS];
 
 	bool		 beats_array[EUCLIDEAN_NUM_TRACKS][EUCLIDEAN_MAX_STEPS];
 	bool		 shifted_array[EUCLIDEAN_NUM_TRACKS][EUCLIDEAN_MAX_STEPS];
@@ -230,11 +234,12 @@ activate(LV2_Handle instance)
 {
 	Euclidean* plugin = (Euclidean*)instance;
 
-	plugin->last_back_trigger    = 0.0f;
-	plugin->last_trigger = 0.0f;
-	plugin->last_reset = 0.0f;
+	plugin->prev_back_trigger    = false;
+	plugin->prev_trigger = false;
 	for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 		plugin->step_index[i]   = 0;
+		plugin->trigger_count_down[i]   = 0;
+		plugin->is_the_one_count_down[i]   = 0;
 	}
 }
 
@@ -272,11 +277,12 @@ run(LV2_Handle instance,
 	/* float* is_the_one[EUCLIDEAN_NUM_TRACKS] = plugin->is_the_one; */
 	/* float* current_step_out[EUCLIDEAN_NUM_TRACKS] = plugin->current_step_out; */
 
-	float last_back_trigger    = plugin->last_back_trigger;
-	float last_trigger = plugin->last_trigger;
-	float last_reset   = plugin->last_reset;
+	bool prev_back_trigger    = plugin->prev_back_trigger;
+	bool prev_trigger = plugin->prev_trigger;
 
 	unsigned int  step_index[EUCLIDEAN_NUM_TRACKS]; 
+	unsigned int  trigger_count_down[EUCLIDEAN_NUM_TRACKS]; 
+	unsigned int  is_the_one_count_down[EUCLIDEAN_NUM_TRACKS]; 
 
 	for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 		beats[i] = (int) *(plugin->beats[i]);
@@ -284,6 +290,8 @@ run(LV2_Handle instance,
 		shift[i] = (int) *(plugin->shift[i]);
 		is_enabled[i] = *(plugin->is_enabled[i]) > 0.9;
 		step_index[i] = plugin->step_index[i]; // this is dumb but I can't remember how to do pointers properly today...
+		trigger_count_down[i] = plugin->trigger_count_down[i]; // this is dumb but I can't remember how to do pointers properly today...
+		is_the_one_count_down[i] = plugin->is_the_one_count_down[i]; // this is dumb but I can't remember how to do pointers properly today...
 	}
 
 	int bucket;
@@ -307,32 +315,36 @@ run(LV2_Handle instance,
 	}
 
 	for (uint32_t s = 0; s < sample_count; ++s) {
-		for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
-			plugin->out_trigger[i][s] = 0.0f;
-			plugin->is_the_one[i][s] = 0.0f;
-		}
-		if (reset[s] > 0.0f) {
+
+		if (reset[s] > 0.4) {
 			for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 				step_index[i] = 0;
+				prev_trigger = false;
 			}
 		} else {
-			if (trigger[s] > 0.0f && !(last_trigger > 0.0f)) {
+			if (trigger[s] > 0.4f && !(prev_trigger)) {
+				prev_trigger = true;
 				for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 					if (is_enabled[i] > 0.9f){
 						step_index[i]++;
 						if (step_index[i] >= steps[i]) {
 							step_index[i] = 0;
 						}
-						plugin->out_trigger[i][s] = (float) plugin->shifted_array[i][step_index[i]];
-						if (step_index[i] == 0){
-							plugin->is_the_one[i][s] = 1.0f;
+						if (plugin->shifted_array[i][step_index[i]]){
+							trigger_count_down[i] = TRIGGER_LENGTH;
 						}
-					
+						if (step_index[i] == 0){
+							is_the_one_count_down[i] = TRIGGER_LENGTH;
+						}
 					}
 				}
-
+			} 
+			else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
+				prev_trigger = false;
 			}
-			if (back_trigger[s] > 0.0f && !(last_back_trigger > 0.0f)) {
+
+			if (back_trigger[s] > 0.4f && !(prev_back_trigger)) {
+				prev_back_trigger = true;
 				for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 					if (is_enabled[i] > 0.9f){
 						if (step_index[i] == 0){
@@ -341,27 +353,46 @@ run(LV2_Handle instance,
 						else {
 							step_index[i]--;
 						}
-						plugin->out_trigger[i][s] = (float) plugin->shifted_array[i][step_index[i]];
+						if (plugin->shifted_array[i][step_index[i]]){
+							trigger_count_down[i] = TRIGGER_LENGTH;
+						}
 						if (step_index[i] == 0){
-							plugin->is_the_one[i][s] = 1.0f;
+							is_the_one_count_down[i] = TRIGGER_LENGTH;
 						}
 					}
 				}
+			} else if (back_trigger[s] <= 0.05){ // 0.25 volts in Hector
+				prev_back_trigger = false;
 			}
 		}
-		last_back_trigger    = back_trigger[s];
-		last_trigger = trigger[s];
-		last_reset = reset[s];
+		for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
+			if (trigger_count_down[i] > 0){
+				trigger_count_down[i]--;
+				plugin->out_trigger[i][s] = 1.0f;
+			}
+			else {
+				plugin->out_trigger[i][s] = 0.0f;
+			}
 
+			if (is_the_one_count_down[i] > 0){
+				is_the_one_count_down[i]--;
+				plugin->is_the_one[i][s] = 1.0f;
+			}
+			else {
+				plugin->is_the_one[i][s] = 0.0f;
+			}
+
+		}
 	}
 
-	plugin->last_back_trigger    = last_back_trigger;
-	plugin->last_trigger = last_trigger;
-	plugin->last_reset = last_reset;
+	plugin->prev_back_trigger    = prev_back_trigger;
+	plugin->prev_trigger = prev_trigger;
 	
 	for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 		plugin->step_index[i]   = step_index[i];
 		plugin->current_step_out[i][0] = (float) step_index[i];
+		plugin->trigger_count_down[i]   = trigger_count_down[i];
+		plugin->is_the_one_count_down[i]   = is_the_one_count_down[i];
 	}
 }
 

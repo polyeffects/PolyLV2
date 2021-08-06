@@ -32,6 +32,8 @@
 
 #define MATH_URI "http://polyeffects.com/lv2/basic_modular#"
 
+#define TRIGGER_LENGTH 48 // 1 ms at 48kHz
+
 #define DIFFERENCE_MINUEND    0
 #define DIFFERENCE_SUBTRAHEND 1
 #define DIFFERENCE_DIFFERENCE 2
@@ -49,6 +51,7 @@ typedef struct {
 	float*       difference;
 
 	int operator;	
+	int trigger_countdown;	
 	bool prev_trigger;	
 	bool on_state;	
 } Difference;
@@ -140,6 +143,7 @@ instantiate(const LV2_Descriptor*     descriptor,
     }
 	plugin->prev_trigger = false;	
 	plugin->on_state = false;	
+	plugin->trigger_countdown = 0;	
 
 	return (LV2_Handle)plugin;
 }
@@ -196,7 +200,7 @@ run_toggle(LV2_Handle instance,
 	float* const            out = plugin->difference;
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
-		if (trigger[s] >= 1) {
+		if (trigger[s] >= 0.4) {
 			if (!(plugin->prev_trigger)){
 				plugin->on_state = !(plugin->on_state);
 				plugin->prev_trigger = true;
@@ -216,20 +220,23 @@ run_schmitt(LV2_Handle instance,
 	Difference* const plugin     = (Difference*)instance;
 	const float* const      trigger    = plugin->minuend_cv;
 	float* const            out = plugin->difference;
-	bool is_triggered = false; 
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
-		is_triggered = false;
 		if (trigger[s] >= 0.4) { // 2 volt in Hector
 			if (!(plugin->prev_trigger)){
-				is_triggered = true;
 				plugin->prev_trigger = true;
+				plugin->trigger_countdown = TRIGGER_LENGTH;
 			}
 		} else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
 			plugin->prev_trigger = false;
 		}
-		out[s] = (float) (is_triggered);
-
+		if (plugin->trigger_countdown > 0){
+			plugin->trigger_countdown--;
+			out[s] = 1.0f;
+		}
+		else {
+			out[s] = 0.0f;
+		}
 	} 
 }
 
