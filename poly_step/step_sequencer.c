@@ -199,7 +199,7 @@ run(LV2_Handle instance,
 					step_index = 0;
 				}
 			}
-			else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
+			else if (trigger[s] <= 0.08){ // 0.25 volts in Hector
 				prev_trigger = false;
 			}
 
@@ -211,7 +211,7 @@ run(LV2_Handle instance,
 				else {
 					step_index--;
 				}
-			} else if (back_trigger[s] <= 0.05){ // 0.25 volts in Hector
+			} else if (back_trigger[s] <= 0.08){ // 0.25 volts in Hector
 				prev_back_trigger = false;
 			}
 		}

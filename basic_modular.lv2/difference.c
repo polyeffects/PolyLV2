@@ -205,7 +205,7 @@ run_toggle(LV2_Handle instance,
 				plugin->on_state = !(plugin->on_state);
 				plugin->prev_trigger = true;
 			}
-		} else {
+		} else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
 			plugin->prev_trigger = false;
 		}
 		out[s] = (float) (plugin->on_state);

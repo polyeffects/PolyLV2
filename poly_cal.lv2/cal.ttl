@@ -1,0 +1,120 @@
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix opts: <http://lv2plug.in/ns/ext/options#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix urid: <http://lv2plug.in/ns/ext/urid#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+
+<http://polyeffects.com/lv2/pitch_cal#in> 
+	a lv2:Plugin ,
+		lv2:AmplifierPlugin ;
+	doap:name "pitch_cal_in" ;
+        doap:license <http://opensource.org/licenses/GPL-2.0> ;
+        doap:description "v per oct pitch calibration";
+        doap:maintainer [
+                foaf:name "Poly Effects" ;
+        ] ;
+        lv2:minorVersion 0 ;
+        lv2:microVersion 1 ;
+        rdfs:comment "Pitch Cal In" ;
+	lv2:optionalFeature lv2:hardRTCapable ;
+
+	lv2:port [
+		a lv2:ControlPort,
+			lv2:InputPort ;
+		lv2:index 0 ;
+		lv2:maximum 1 ;
+		lv2:minimum -1 ;
+		lv2:default 0 ;
+		lv2:name "offset" ;
+		lv2:symbol "offset" ;
+	] , [
+		a lv2:ControlPort ,
+			lv2:InputPort ;
+		lv2:index 1 ;
+		lv2:maximum 2 ;
+		lv2:minimum 0 ;
+		lv2:default 1 ;
+		lv2:name "scale" ;
+		lv2:symbol "scale" ;
+	] , [
+		a lv2:CVPort ,
+			lv2:InputPort ;
+		lv2:index 2 ;
+		lv2:name "input" ;
+		lv2:symbol "input" ;
+	] , [
+		a lv2:CVPort,
+			lv2:OutputPort ;
+		lv2:index 3 ;
+		lv2:name "output" ;
+		lv2:symbol "output" ;
+	] , [
+		a lv2:ControlPort ,
+			lv2:InputPort ;
+		lv2:index 4 ;
+		lv2:maximum 1 ;
+		lv2:minimum 0 ;
+		lv2:default 0 ;
+		lv2:name "measure" ;
+		lv2:symbol "measure" ;
+	] , [
+		a lv2:ControlPort ,
+			lv2:OutputPort ;
+		lv2:index 5 ;
+		lv2:name "min_level" ;
+		lv2:symbol "min_level" ;
+	] , [
+		a lv2:ControlPort ,
+			lv2:OutputPort ;
+		lv2:index 6 ;
+		lv2:name "max_level" ;
+		lv2:symbol "max_level" ;
+	] .
+
+<http://polyeffects.com/lv2/pitch_cal#out> 
+	a lv2:Plugin ,
+		lv2:AmplifierPlugin ;
+	doap:name "pitch_cal_in" ;
+        doap:license <http://opensource.org/licenses/GPL-2.0> ;
+        doap:description "v per oct pitch out calibration";
+        doap:maintainer [
+                foaf:name "Poly Effects" ;
+        ] ;
+        lv2:minorVersion 0 ;
+        lv2:microVersion 1 ;
+        rdfs:comment "Pitch Cal Out" ;
+	lv2:optionalFeature lv2:hardRTCapable ;
+
+	lv2:port [
+		a lv2:ControlPort,
+			lv2:InputPort ;
+		lv2:index 0 ;
+		lv2:maximum 1 ;
+		lv2:minimum -1 ;
+		lv2:default 0 ;
+		lv2:name "offset" ;
+		lv2:symbol "offset" ;
+	] , [
+		a lv2:ControlPort ,
+			lv2:InputPort ;
+		lv2:index 1 ;
+		lv2:maximum 2 ;
+		lv2:minimum 0 ;
+		lv2:default 1 ;
+		lv2:name "scale" ;
+		lv2:symbol "scale" ;
+	] , [
+		a lv2:CVPort ,
+			lv2:InputPort ;
+		lv2:index 2 ;
+		lv2:name "input" ;
+		lv2:symbol "input" ;
+	] , [
+		a lv2:CVPort,
+			lv2:OutputPort ;
+		lv2:index 3 ;
+		lv2:name "output" ;
+		lv2:symbol "output" ;
+	] .

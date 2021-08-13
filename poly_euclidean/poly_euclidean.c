@@ -339,7 +339,7 @@ run(LV2_Handle instance,
 					}
 				}
 			} 
-			else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
+			else if (trigger[s] <= 0.08){ // 0.4 volts in Hector
 				prev_trigger = false;
 			}
 
@@ -361,13 +361,13 @@ run(LV2_Handle instance,
 						}
 					}
 				}
-			} else if (back_trigger[s] <= 0.05){ // 0.25 volts in Hector
+			} else if (back_trigger[s] <= 0.08){ // 0.25 volts in Hector
 				prev_back_trigger = false;
 			}
 		}
 		for (int i = 0; i < EUCLIDEAN_NUM_TRACKS; i++) {
 			if (trigger_count_down[i] > 0){
-				trigger_count_down[i]--;
+				trigger_count_down[i] = trigger_count_down[i] - 1;
 				plugin->out_trigger[i][s] = 1.0f;
 			}
 			else {
@@ -375,7 +375,7 @@ run(LV2_Handle instance,
 			}
 
 			if (is_the_one_count_down[i] > 0){
-				is_the_one_count_down[i]--;
+				is_the_one_count_down[i] = is_the_one_count_down[i] - 1;
 				plugin->is_the_one[i][s] = 1.0f;
 			}
 			else {
