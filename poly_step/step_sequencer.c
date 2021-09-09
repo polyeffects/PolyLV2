@@ -189,7 +189,7 @@ run(LV2_Handle instance,
    float fSlow1 = (1.0f - fSlow0);
 
 	for (uint32_t s = 0; s < sample_count; ++s) {
-		if (reset[s] > 0.0f) {
+		if (reset[s] > 0.4f) {
 			step_index = 0;
 		} else {
 			if (trigger[s] > 0.4f && !(prev_trigger)) {

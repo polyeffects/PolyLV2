@@ -198,20 +198,20 @@ run(LV2_Handle instance,
 
 	for (uint32_t s = 0; s < sample_count; ++s) {
 		samples_elapsed++;
-		if (reset[s] >= 1.0f) {
+		if (reset[s] >= 0.4f) {
 			step_index = 0;
 			samples_elapsed = 0;
 		}
 		else {
-			if (play[s] >= 1.0f || back_gate[s] >= 1.0f) {
+			if (play[s] >= 0.4f || back_gate[s] >= 0.4f) {
 				if (samples_elapsed > samples_per_step){
-					if (play[s] >= 1.0f) {
+					if (play[s] >= 0.40f) {
 						step_index++;
 						if (step_index >= loop_index) {
 							step_index = 0;
 						}
 					}
-					if (back_gate[s] >= 1.0f) {
+					if (back_gate[s] >= 0.4f) {
 						if (step_index == 0){
 							step_index = loop_index-1;
 						}
