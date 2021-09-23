@@ -1,0 +1,7 @@
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<http://polyeffects.com/lv2/cv_to_cc> 
+    a lv2:Plugin, lv2:MIDIPlugin ;
+    lv2:binary <cv_to_cc.so> ;
+    rdfs:seeAlso <cv_to_cc.ttl> .
