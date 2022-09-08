@@ -59,3 +59,8 @@
 	a lv2:Plugin ;
 	rdfs:seeAlso <difference.ttl> ;
 	lv2:binary <maths.so> .
+
+<http://polyeffects.com/lv2/basic_modular#clock_divider> 
+	a lv2:Plugin ;
+	rdfs:seeAlso <difference.ttl> ;
+	lv2:binary <clock_divider.so> .

@@ -44,6 +44,7 @@ endif
 
 targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 targets+=$(BUILDDIR)maths$(LIB_EXT)
+targets+=$(BUILDDIR)clock_divider$(LIB_EXT)
 
 ###############################################################################
 # extract versions
@@ -91,12 +92,19 @@ $(BUILDDIR)maths$(LIB_EXT): difference.c
 		-shared -DURI_PREFIX=$(URI_PREFIX) $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
+$(BUILDDIR)clock_divider$(LIB_EXT): clock_divider.c 
+	@mkdir -p $(BUILDDIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) \
+	  -o $(BUILDDIR)clock_divider$(LIB_EXT) clock_divider.c \
+		-shared -DURI_PREFIX=$(URI_PREFIX) $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
+	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 # install/uninstall/clean target definitions
 
 install: all
 	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m755 $(BUILDDIR)maths$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m755 $(BUILDDIR)clock_divider$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -m644 $(BUILDDIR)manifest.ttl $(BUILDDIR)difference.ttl $(BUILDDIR)amp.ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 uninstall:
