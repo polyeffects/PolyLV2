@@ -52,6 +52,7 @@ typedef struct {
 
 	int operator;	
 	int trigger_countdown;	
+	float srate;
 	bool prev_trigger;	
 	bool on_state;	
 } Difference;
@@ -144,6 +145,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	plugin->prev_trigger = false;	
 	plugin->on_state = false;	
 	plugin->trigger_countdown = 0;	
+	plugin->srate  = (float)sample_rate;
 
 	return (LV2_Handle)plugin;
 }
@@ -252,6 +254,37 @@ run_tempo_ratio(LV2_Handle instance,
 
 	tempo_out[0] = tempo_in / (a / b);
 
+}
+
+static void
+run_trigger_to_gate(LV2_Handle instance,
+    uint32_t   sample_count)
+{
+	Difference* const plugin     = (Difference*)instance;
+	const float* const      trigger    = plugin->minuend_cv;
+	float* const            out = plugin->difference;
+
+	const float      tempo    = *(plugin->minuend);
+	const float      gate_length = *(plugin->subtrahend);
+	const float* const      extra_time = plugin->subtrahend_cv;
+
+	for (uint32_t s = 0; s < sample_count; ++s) { 
+		if (trigger[s] >= 0.4) { // 2 volt in Hector
+			if (!(plugin->prev_trigger)){
+				plugin->prev_trigger = true;
+				plugin->trigger_countdown = (int) (((60.0 / tempo) * plugin->srate) / (0.25 / (gate_length+extra_time[s])));
+			}
+		} else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
+			plugin->prev_trigger = false;
+		}
+		if (plugin->trigger_countdown > 0){
+			plugin->trigger_countdown--;
+			out[s] = 1.0f;
+		}
+		else {
+			out[s] = 0.0f;
+		}
+	} 
 }
 
 
@@ -365,6 +398,17 @@ static const LV2_Descriptor descriptor9 = {
 	NULL,
 };
 
+static const LV2_Descriptor descriptor10 = {
+	MATH_URI "trigger_to_gate",
+	instantiate,
+	connect_port,
+	NULL,
+	run_trigger_to_gate,
+	NULL,
+	cleanup,
+	NULL,
+};
+
 LV2_SYMBOL_EXPORT const LV2_Descriptor*
 lv2_descriptor(uint32_t index)
 {
@@ -389,6 +433,8 @@ lv2_descriptor(uint32_t index)
 			return &descriptor8;
 		case 9:
 			return &descriptor9;
+		case 10:
+			return &descriptor10;
 		default:
 			return NULL;
 	}

@@ -550,3 +550,61 @@
 		lv2:name "trigger out" ;
 		lv2:symbol "out" ;
 	] .
+
+<http://polyeffects.com/lv2/basic_modular#trigger_to_gate> 
+	a lv2:Plugin ,
+		lv2:AmplifierPlugin ;
+	doap:name "trigger_to_gate" ;
+        doap:license <http://opensource.org/licenses/GPL-2.0> ;
+        doap:description "Takes in a trigger and outputs a gate of a specific tempo related length";
+        doap:maintainer [
+                foaf:name "Poly Effects" ;
+        ] ;
+        lv2:minorVersion 0 ;
+        lv2:microVersion 1 ;
+        rdfs:comment "trigger_to_gate" ;
+	lv2:optionalFeature lv2:hardRTCapable ;
+
+	lv2:port [
+		a lv2:ControlPort,
+			lv2:InputPort ;
+		lv2:index 0 ;
+		lv2:maximum 300 ;
+		lv2:minimum 30 ;
+		lv2:default 120 ;
+		lv2:name "tempo" ;
+		lv2:symbol "tempo" ;
+	] , [
+		a lv2:ControlPort ,
+			lv2:InputPort ;
+		lv2:index 1 ;
+		lv2:maximum 1 ;
+		lv2:minimum 0.03125 ;
+		lv2:default 0.25 ;
+		lv2:name "gate length" ;
+		lv2:symbol "gate_length" ;
+	] , [
+		a lv2:CVPort ,
+			lv2:OutputPort ;
+		lv2:index 2 ;
+		lv2:name "gate out" ;
+		lv2:symbol "gate_out" ;
+	] , [
+		a lv2:CVPort,
+			lv2:InputPort ;
+		lv2:index 3 ;
+		lv2:maximum 1 ;
+		lv2:minimum 0 ;
+		lv2:default 0 ;
+		lv2:name "trigger" ;
+		lv2:symbol "trigger" ;
+	] , [
+		a lv2:CVPort ,
+			lv2:InputPort ;
+		lv2:index 4 ;
+		lv2:maximum 1 ;
+		lv2:minimum 0 ;
+		lv2:default 0 ;
+		lv2:name "Gate Length CV" ;
+		lv2:symbol "gate_length_cv" ;
+	] .

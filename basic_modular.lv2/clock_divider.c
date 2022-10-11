@@ -30,6 +30,8 @@
 #define AMP_INPUT  1
 #define AMP_OUTPUT 2
 
+#define TRIGGER_LENGTH 48 // 1 ms at 48kHz
+
 typedef struct {
 	const float* divider;
 	const float* input;
@@ -38,6 +40,7 @@ typedef struct {
 	bool prev_trigger;	
 	bool on_state;	
 	int pulse_count;
+	int trigger_countdown;
 } Amp;
 
 static void
@@ -79,6 +82,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	plugin->prev_trigger = false;	
 	plugin->on_state = false;	
 	plugin->pulse_count = 0;
+	plugin->trigger_countdown = 0;
 
 	return (LV2_Handle)plugin;
 }
@@ -96,6 +100,7 @@ run(LV2_Handle instance,
 	/* Output */
 	float* output = plugin->output;
 	int pulse_count = plugin->pulse_count;
+	int trigger_countdown = plugin->trigger_countdown;
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
 		if (trigger[s] >= 0.4) {
@@ -106,22 +111,24 @@ run(LV2_Handle instance,
 				if (pulse_count >= divider){
 					// this pulse goes through
 					pulse_count = 0;
-					output[s] = trigger[s];
-				} else {
-					output[s] = 0.0f;
-				};
-			} else {
-				output[s] = trigger[s];
+					trigger_countdown = TRIGGER_LENGTH;
+				} 
 			}
 		} else if (trigger[s] <= 0.05){ // 0.25 volts in Hector
 			plugin->prev_trigger = false;
 			plugin->on_state = false;
-			output[s] = 0.0f;
+		} 
+
+		if (trigger_countdown > 0){
+			trigger_countdown--;
+			output[s] = 1.0f;
 		} else {
 			output[s] = 0.0f;
 		}
+
 	} 
 	plugin->pulse_count = pulse_count;
+	plugin->trigger_countdown = trigger_countdown;
 }
 
 
