@@ -32,6 +32,8 @@
 
 #define MATH_URI "http://polyeffects.com/lv2/basic_quantizer"
 
+#define TRIGGER_LENGTH 48 // 1 ms at 48kHz
+
 #define QUANTIZER_INPUT    0
 #define QUANTIZER_START_NOTES 1
 #define QUANTIZER_END_NOTES 12
@@ -44,7 +46,9 @@ typedef struct {
 	float*       output;
 	float*       changed;
 
-	float prev_out;	
+	int prev_note;	
+	int trigger_countdown;	
+	bool prev_trigger;	
 } Quantizer;
 
 static void
@@ -95,7 +99,9 @@ instantiate(const LV2_Descriptor*     descriptor,
 	if (!plugin){
 		return NULL;
 	}
-	plugin->prev_out = 0.0f;
+	plugin->prev_note = 0;
+	plugin->prev_trigger = false;	
+	plugin->trigger_countdown = 0;	
 
 	return (LV2_Handle)plugin;
 }
@@ -122,12 +128,13 @@ run(LV2_Handle instance,
 	int in_note = 0;
 	int cur_note = 0;
 	int octave = 0;
-	float prev_out = plugin->prev_out;
+	int prev_note = plugin->prev_note;
 
 
 	for (uint32_t s = 0; s < sample_count; ++s) { 
-		in_note = (int) fabs(roundf (input[s] * 60.0)) % 12; 	
-		octave = truncf(input[s] * 5.0f);
+		in_note = ((int) roundf(60.0f * (input[s] +1.0f))) % 12;
+		octave = ((int) roundf(60.0f * (input[s] +1.0f))) / 12;
+		/* octave = 4; //(int) ((60.0f * (input[s] +1.0f))) / 12; */
 		for (int i = 0; i < 12; i++){
 
 			cur_note = mod_euclidean(in_note - i, 12);
@@ -139,20 +146,26 @@ run(LV2_Handle instance,
 				break;
 			}
 		}
-		if (input[s] > 0){
-			output[s] = (octave + (cur_note / 12.0)) * 0.2 ;
+		output[s] = (((octave * 12) + cur_note) / 60.0f) - 1.0f;
+		if (cur_note != prev_note){
+			if (!(plugin->prev_trigger)){
+				plugin->prev_trigger = true;
+				plugin->trigger_countdown = TRIGGER_LENGTH;
+			}
 		} else {
-			output[s] = (octave - (cur_note / 12.0)) * 0.2;
+			plugin->prev_trigger = false;
 		}
-		if (output[s] == prev_out){
-			changed[s] = 0.0f;
-		} else {
+		if (plugin->trigger_countdown > 0){
+			plugin->trigger_countdown--;
 			changed[s] = 1.0f;
 		}
-		prev_out = output[s];
+		else {
+			changed[s] = 0.0f;
+		}
+		prev_note = cur_note;
 	} 
 
-	plugin->prev_out = prev_out;	
+	plugin->prev_note = prev_note;	
 }
 
 
