@@ -1,0 +1,108 @@
+@prefix doap:  <http://usefulinc.com/ns/doap#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+
+@prefix lv2:     <http://lv2plug.in/ns/lv2core#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+@prefix lv2atom: <http://lv2plug.in/ns/ext/atom#> .
+@prefix lv2midi: <http://lv2plug.in/ns/ext/midi#> .
+@prefix lv2time: <http://lv2plug.in/ns/ext/time#> .
+@prefix pg: <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix param: <http://lv2plug.in/ns/ext/parameters#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix ui:   <http://lv2plug.in/ns/extensions/ui#> .
+@prefix pprops:   <http://lv2plug.in/ns/ext/port-props#> .
+
+
+<http://polyeffects.com/lv2/strum> 
+        a lv2:Plugin, lv2:GeneratorPlugin ;
+        doap:name "strum" ;
+        doap:license <http://opensource.org/licenses/GPL-2.0> ;
+        doap:description "MIDI voct controller based on strumming";
+        doap:maintainer [
+                foaf:name "Poly Effects" ;
+        ] ;
+        lv2:minorVersion 0 ;
+        lv2:microVersion 1 ;
+        rdfs:comment "MIDI voct controller based on strumming. Autoharp inspired." ;
+        lv2:requiredFeature <http://lv2plug.in/ns/ext/urid#map> ;
+        lv2:optionalFeature lv2:hardRTCapable ;
+
+        lv2:port [
+                a lv2:OutputPort, lv2atom:AtomPort ;
+                lv2atom:bufferType lv2atom:Sequence ;
+                lv2atom:supports lv2midi:MidiEvent ;
+                lv2:index 0 ;
+                lv2:symbol "midi_out";
+                lv2:name "MIDI Out";
+        ], [
+                a lv2:OutputPort, lv2:CVPort ;
+                lv2:index 1 ;
+                lv2:symbol "v_oct_out" ;
+                lv2:name "v_oct_out" ;
+                lv2:default 0 ;
+                lv2:minimum -1 ;
+                lv2:maximum 1 ;
+        ], [
+                a lv2:OutputPort, lv2:CVPort ;
+                lv2:index 2 ;
+                lv2:symbol "gate_out" ;
+                lv2:name "Gate" ;
+                lv2:default 0 ;
+                lv2:minimum 0 ;
+                lv2:maximum 1 ;
+        ], [
+                a lv2:InputPort, lv2:ControlPort ;
+                lv2:index 3 ;
+                lv2:symbol "chord_root" ;
+                lv2:name "Chord Root" ;
+                lv2:default 0 ;
+                lv2:minimum 0 ;
+                lv2:maximum 12 ;
+                lv2:portProperty lv2:integer ;
+        ], [
+                a lv2:InputPort, lv2:ControlPort ;
+                lv2:index 4 ;
+                lv2:symbol "chord_type" ;
+                lv2:name "chord type" ;
+                lv2:default 0 ;
+                lv2:minimum 0 ;
+                lv2:maximum 3 ;
+                lv2:portProperty lv2:integer ;
+        ], [
+                a lv2:InputPort, lv2:ControlPort ;
+                lv2:index 5 ;
+                lv2:symbol "lead_mode" ;
+                lv2:name "lead mode" ;
+                lv2:default 0 ;
+                lv2:minimum 0 ;
+                lv2:maximum 1 ;
+                lv2:portProperty lv2:integer ;
+        ], [
+                a lv2:InputPort, lv2:ControlPort ;
+                lv2:index 6 ;
+                lv2:symbol "touched_notes" ;
+                lv2:name "touched_notes" ;
+                lv2:default -1 ;
+                lv2:minimum -1 ;
+                lv2:maximum 256 ;
+                lv2:portProperty lv2:integer ;
+        ], [
+                a lv2:InputPort, lv2:ControlPort ;
+                lv2:index 7 ;
+                lv2:symbol "octave" ;
+                lv2:name "octave" ;
+                lv2:default 0 ;
+                lv2:minimum -4 ;
+                lv2:maximum 4 ;
+                lv2:portProperty lv2:integer ;
+        ], [
+                a lv2:InputPort, lv2:ControlPort ;
+                lv2:index 8 ;
+                lv2:symbol "velocity" ;
+                lv2:name "velocity" ;
+                lv2:default 1.0 ;
+                lv2:minimum 0.0 ;
+                lv2:maximum 1,0 ;
+        ] .
