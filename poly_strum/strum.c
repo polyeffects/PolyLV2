@@ -55,6 +55,7 @@ typedef struct _STRUM
     float note_number;
     float prev_touched_notes;
 	bool note_is_on;
+	uint32_t capacity; 
 
 } STRUM;
 
@@ -64,6 +65,7 @@ LV2_Handle init_strum(const LV2_Descriptor *descriptor,double sample_rate, const
     STRUM* plug = (STRUM*)calloc(1, sizeof(STRUM));
     plug->note_number = 60;
     plug->note_is_on = false;
+	plug->capacity = 0;
 
     //get urid map value for midi events
     for (int i = 0; host_features[i]; i++)
@@ -99,21 +101,33 @@ void connect_strum_ports(LV2_Handle handle, uint32_t port, void *data)
     else if(port == VELOCITY)   plug->velocity = (float*)data;
 }
 
+
+static void midi_tx(STRUM *plug, int64_t tme, uint8_t raw_midi[3])
+{
+	LV2_Atom midiatom;
+	midiatom.type = plug->midi_ev_urid;
+	midiatom.size = 3;
+	lv2_atom_forge_frame_time(&plug->forge, tme);
+	lv2_atom_forge_raw(&plug->forge, &midiatom, sizeof(LV2_Atom));
+	lv2_atom_forge_raw(&plug->forge, raw_midi, 3);
+	lv2_atom_forge_pad(&plug->forge, sizeof(LV2_Atom) + midiatom.size);
+}
+
 void run_strum( LV2_Handle handle, uint32_t n_samples)
 {
     STRUM* plug = (STRUM*)handle;
     /* uint8_t msg[3]; */
 	//
 	// Struct for a 3 byte MIDI event, used for writing CC
-	typedef struct {
-		LV2_Atom_Event event;
-		uint8_t        msg[3];
-	} MIDICCEvent;
+	uint8_t        msg[3];
 
+	if (plug->capacity == 0){
+		plug->capacity = plug->midi_out->atom.size;
+	}
 
-	const uint32_t capacity = 32760;//plug->midi_out->atom.size; // XXX dodgy
-	lv2_atom_sequence_clear(plug->midi_out);
-	plug->midi_out->atom.type = plug->midi_ev_urid;
+	lv2_atom_forge_set_buffer(&plug->forge, (uint8_t*)plug->midi_out, plug->capacity);
+	lv2_atom_forge_sequence_head(&plug->forge, &plug->frame, 0);
+
 	
     const uint8_t chan = (uint8_t) 1;
 	const uint8_t note_on = (uint8_t)0x90 + ((uint8_t)(chan - 1) % 16);
@@ -138,34 +152,27 @@ void run_strum( LV2_Handle handle, uint32_t n_samples)
     int8_t note_offset = -1;
     int8_t octave_offset = 0;
 	float v_oct_c;
-	uint32_t on_time = n_samples / 8;
-	uint32_t off_time = n_samples / 16;
+	int64_t on_time = n_samples / 8;
+	int64_t off_time = n_samples / 16;
 
 	if (touched_notes != prev_touched_notes){ 
 		prev_touched_notes = touched_notes;
 		if (note_is_on){
 			note_is_on = false;
-			MIDICCEvent midiatom;
-			void *r_v = NULL;
 			//
 			//make event
-			midiatom.msg[0] = note_off;
-			midiatom.msg[1] = MIDI_DATA_MASK & (uint8_t) note_number;
+			msg[0] = note_off;
+			msg[1] = MIDI_DATA_MASK & (uint8_t) note_number;
 			/* midiatom.msg[2] = MIDI_DATA_MASK & (uint8_t) (velocity[0] * 127.0f); */
-			midiatom.msg[2] = MIDI_DATA_MASK & (uint8_t) (127.0f);
+			msg[2] = MIDI_DATA_MASK & (uint8_t) (127.0f);
 
-			midiatom.event.body.type = plug->midi_ev_urid;
-			midiatom.event.body.size = 3;
-			midiatom.event.time.frames = off_time;
-
-			r_v = lv2_atom_sequence_append_event(plug->midi_out, capacity, &midiatom.event);
-			/* printf("appended note off %d %d %d %p capacity %lu \n", midiatom.msg[0], midiatom.msg[1], midiatom.msg[2], r_v, (unsigned long)capacity); */
+			midi_tx(plug, off_time, msg);
+			printf("appended note off %d %d %d capacity %lu \n", msg[0], msg[1], msg[2], (unsigned long)plug->capacity);
 		}
 		if (touched_notes >= 0) { // got any touches
 			if (!(note_is_on)){
 				note_is_on = true;
 
-				MIDICCEvent midiatom;
 				// make event
 				// need to find what note corrosponds to the current touch
 				// 4 octaves of 4 notes
@@ -195,19 +202,14 @@ void run_strum( LV2_Handle handle, uint32_t n_samples)
 				if (note_offset > -1){ // don't do anything if we've touched a 7th and we're not a 7
 					octave_offset = ((uint8_t) (touched_notes / 4) * 12) + (octave * 12);
 					
-					void *r_v = NULL;
-					midiatom.msg[0] = note_on;
+					msg[0] = note_on;
 					note_number = (60 + chord_root + note_offset + octave_offset);
-					midiatom.msg[1] = MIDI_DATA_MASK & (uint8_t) note_number;
+					msg[1] = MIDI_DATA_MASK & (uint8_t) note_number;
 					/* midiatom.msg[2] = MIDI_DATA_MASK & (uint8_t) (velocity[0] * 127.0f); */
-					midiatom.msg[2] = MIDI_DATA_MASK & (uint8_t) (127.0f);
+					msg[2] = MIDI_DATA_MASK & (uint8_t) (127.0f);
 
-					midiatom.event.body.type = plug->midi_ev_urid;
-					midiatom.event.body.size = 3;
-					midiatom.event.time.frames = on_time;
-
-					r_v = lv2_atom_sequence_append_event(plug->midi_out, capacity, &midiatom.event);
-					/* printf("appended note on %d %d %d %p capacity %lu \n", midiatom.msg[0], midiatom.msg[1], midiatom.msg[2], r_v, (unsigned long)capacity); */
+					midi_tx(plug, on_time, msg);
+					printf("appended note on %d %d %d capacity %lu \n", msg[0], msg[1], msg[2], (unsigned long)plug->capacity);
 				} 
 				/* else { */
 				/* 	gate[s] = 0.0f; */
