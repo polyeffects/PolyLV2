@@ -167,7 +167,7 @@ void run_strum( LV2_Handle handle, uint32_t n_samples)
 			msg[2] = MIDI_DATA_MASK & (uint8_t) (127.0f);
 
 			midi_tx(plug, off_time, msg);
-			printf("appended note off %d %d %d capacity %lu \n", msg[0], msg[1], msg[2], (unsigned long)plug->capacity);
+			/* printf("appended note off %d %d %d capacity %lu \n", msg[0], msg[1], msg[2], (unsigned long)plug->capacity); */
 		}
 		if (touched_notes >= 0) { // got any touches
 			if (!(note_is_on)){
@@ -209,7 +209,7 @@ void run_strum( LV2_Handle handle, uint32_t n_samples)
 					msg[2] = MIDI_DATA_MASK & (uint8_t) (127.0f);
 
 					midi_tx(plug, on_time, msg);
-					printf("appended note on %d %d %d capacity %lu \n", msg[0], msg[1], msg[2], (unsigned long)plug->capacity);
+					/* printf("appended note on %d %d %d capacity %lu \n", msg[0], msg[1], msg[2], (unsigned long)capacity); */
 				} 
 				/* else { */
 				/* 	gate[s] = 0.0f; */

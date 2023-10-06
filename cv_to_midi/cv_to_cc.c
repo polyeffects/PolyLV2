@@ -48,6 +48,7 @@ typedef struct _CV_TO_CC
 
 	// 
     float prev_cv;
+	uint32_t capacity; 
 
 } CV_TO_CC;
 
@@ -56,6 +57,7 @@ LV2_Handle init_cv_to_cc(const LV2_Descriptor *descriptor,double sample_rate, co
 {
     CV_TO_CC* plug = (CV_TO_CC*)calloc(1, sizeof(CV_TO_CC));
     plug->prev_cv = 0.0;
+	plug->capacity = 0;
 
     //get urid map value for midi events
     for (int i = 0; host_features[i]; i++)
@@ -87,52 +89,48 @@ void connect_cv_to_cc_ports(LV2_Handle handle, uint32_t port, void *data)
     else if(port == CC_NUM)  plug->cc_num_p = (float*)data;
 }
 
+static void midi_tx(CV_TO_CC *plug, int64_t tme, uint8_t raw_midi[3])
+{
+	LV2_Atom midiatom;
+	midiatom.type = plug->midi_ev_urid;
+	midiatom.size = 3;
+	lv2_atom_forge_frame_time(&plug->forge, tme);
+	lv2_atom_forge_raw(&plug->forge, &midiatom, sizeof(LV2_Atom));
+	lv2_atom_forge_raw(&plug->forge, raw_midi, 3);
+	lv2_atom_forge_pad(&plug->forge, sizeof(LV2_Atom) + midiatom.size);
+}
+
 void run_cv_to_cc( LV2_Handle handle, uint32_t n_samples)
 {
     CV_TO_CC* plug = (CV_TO_CC*)handle;
     /* uint8_t msg[3]; */
 	//
 	// Struct for a 3 byte MIDI event, used for writing CC
-	typedef struct {
-		LV2_Atom_Event event;
-		uint8_t        msg[3];
-	} MIDICCEvent;
+	uint8_t        msg[3];
+
+	if (plug->capacity == 0){
+		plug->capacity = plug->midi_out_p->atom.size;
+	}
 
 
-	const uint32_t capacity = plug->midi_out_p->atom.size;
-	lv2_atom_sequence_clear(plug->midi_out_p);
-	plug->midi_out_p->atom.type = plug->midi_ev_urid;
-	/* lv2_atom_forge_set_buffer(&plug->forge,(uint8_t*)plug->midi_out_p, capacity); */
-	/* lv2_atom_forge_sequence_head(&plug->forge, &plug->frame, 0); */
-	
+	lv2_atom_forge_set_buffer(&plug->forge, (uint8_t*)plug->midi_out_p, plug->capacity);
+	lv2_atom_forge_sequence_head(&plug->forge, &plug->frame, 0);
+
 	const uint8_t msg_type = (uint8_t)176 + ((uint8_t)(*plug->chan_p - 1) % 16);
 
 	for (uint32_t i = 0; (i < n_samples); i = (i + 1)) {
 	// if difference is greater than resolution
 		if(fabs(plug->cv_in_p[i] - plug->prev_cv) > *plug->resolution_p)  
 		{
-			MIDICCEvent midiatom;
-			//get midi port ready
-			/* midiatom.type = plug->midi_ev_urid; */
-			/* midiatom.size = 3;//midi CC */
-
 			//make event
-			midiatom.msg[0] = msg_type;
+			msg[0] = msg_type;
 
 			plug->prev_cv = *plug->cv_in_p;
 
-			midiatom.msg[1] = MIDI_DATA_MASK & (uint8_t)*plug->cc_num_p;
-			midiatom.msg[2] = MIDI_DATA_MASK & (uint8_t)(plug->cv_in_p[i] * 127.0f);
-			midiatom.event.body.type = plug->midi_ev_urid;
-			midiatom.event.body.size = 3;
-			midiatom.event.time.frames = i;
+			msg[1] = MIDI_DATA_MASK & (uint8_t)*plug->cc_num_p;
+			msg[2] = MIDI_DATA_MASK & (uint8_t)(plug->cv_in_p[i] * 127.0f);
 
-			/* lv2_atom_forge_frame_time(&plug->forge,0); */
-			/* lv2_atom_forge_raw(&plug->forge,&midiatom,sizeof(LV2_Atom)); */
-			/* lv2_atom_forge_raw(&plug->forge,msg,midiatom.size); */
-			/* lv2_atom_forge_pad(&plug->forge,midiatom.size+sizeof(LV2_Atom)); */
-
-			lv2_atom_sequence_append_event(plug->midi_out_p, capacity, &midiatom.event);
+			midi_tx(plug, i, msg);
 
 			plug->prev_cv = plug->cv_in_p[i];
 		}
