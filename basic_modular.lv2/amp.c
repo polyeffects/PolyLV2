@@ -26,6 +26,7 @@
 #include "lv2/lv2plug.in/ns/ext/atom/atom.h"
 #include "lv2/lv2plug.in/ns/ext/urid/urid.h"
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
+#include "fastonebigheader.h"
 
 #define AMP_GAIN   0
 #define AMP_INPUT  1
@@ -94,7 +95,7 @@ run(LV2_Handle instance,
 
 	for (uint32_t s = 0; s < sample_count; ++s) {
 		const float gn    = gain[s];
-		const float scale = (float)expf((fmin(gn, 1) - 1) * 9.21f);
+		const float scale = (float)fasterexp((fmin(gn, 1) - 1) * 9.21f);
 
 		output[s] = scale * input[s];
 	}
