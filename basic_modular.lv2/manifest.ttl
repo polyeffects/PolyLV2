@@ -9,6 +9,11 @@
 	rdfs:seeAlso <amp.ttl> ;
 	lv2:binary <basic_modular.so> .
 
+<http://polyeffects.com/lv2/basic_modular#boost>
+	a lv2:Plugin ;
+	rdfs:seeAlso <amp.ttl> ;
+	lv2:binary <basic_modular.so> .
+
 <http://polyeffects.com/lv2/basic_modular#difference>
 	a lv2:Plugin ;
 	rdfs:seeAlso <difference.ttl> ;

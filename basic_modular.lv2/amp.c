@@ -31,8 +31,10 @@
 #define AMP_GAIN   0
 #define AMP_INPUT  1
 #define AMP_OUTPUT 2
+#define BOOST_ON 3
 
 typedef struct {
+	const float* on;
 	const float* gain;
 	const float* input;
 	float*       output;
@@ -60,6 +62,29 @@ connect_port(LV2_Handle instance,
 		break;
 	case AMP_OUTPUT:
 		plugin->output = (float*)data;
+		break;
+	}
+}
+
+static void
+connect_port_boost(LV2_Handle instance,
+             uint32_t   port,
+             void*      data)
+{
+	Amp* plugin = (Amp*)instance;
+
+	switch (port) {
+	case AMP_GAIN:
+		plugin->gain = (const float*)data;
+		break;
+	case AMP_INPUT:
+		plugin->input = (const float*)data;
+		break;
+	case AMP_OUTPUT:
+		plugin->output = (float*)data;
+		break;
+	case BOOST_ON:
+		plugin->on = (const float*)data;
 		break;
 	}
 }
@@ -101,8 +126,36 @@ run(LV2_Handle instance,
 	}
 }
 
+static void
+run_boost(LV2_Handle instance,
+    uint32_t   sample_count)
+{
+	Amp* plugin = (Amp*)instance;
 
-static const LV2_Descriptor descriptor = {
+	/* Gain (dB) */
+	const float* gain = plugin->gain;
+	const float* on = plugin->on;
+
+	/* Input */
+	const float* input = plugin->input;
+
+	/* Output */
+	float* output = plugin->output;
+	float gn = gain[0];
+	const float is_on = on[0];
+
+	if (is_on < 0.5){
+		gn = 1.0;
+	}
+
+	for (uint32_t s = 0; s < sample_count; ++s) {
+		output[s] = gn * input[s];
+	}
+	
+}
+
+
+static const LV2_Descriptor descriptor0 = {
 	"http://polyeffects.com/lv2/basic_modular#amp",
 	instantiate,
 	connect_port,
@@ -113,11 +166,23 @@ static const LV2_Descriptor descriptor = {
 	NULL,
 };
 
+static const LV2_Descriptor descriptor1 = {
+	"http://polyeffects.com/lv2/basic_modular#boost",
+	instantiate,
+	connect_port_boost,
+	NULL,
+	run_boost,
+	NULL,
+	cleanup,
+	NULL,
+};
+
 LV2_SYMBOL_EXPORT const LV2_Descriptor*
 lv2_descriptor(uint32_t index)
 {
 	switch (index) {
-	case 0:  return &descriptor;
+	case 0:  return &descriptor0;
+	case 1:  return &descriptor1;
 	default: return NULL;
 	}
 }
